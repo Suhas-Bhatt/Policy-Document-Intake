@@ -381,7 +381,7 @@ Implemented in `app/utils/errors.py` / route-level exceptions:
 - [ ] **Production gap:** file-type/content validation is extension-only; add magic-byte checks before trusting uploads.
 - [ ] **Production gap:** `auth_service.issue_token` accepts any username/role with no password check — replace with Amazon Cognito or a real credential store before this leaves POC status.
 - [x] Parameterized Snowflake queries (`%(name)s` bind params, no string-built SQL).
-- [ ] **Production gap:** put Flask behind HTTPS (ALB/CloudFront + ACM cert) — not configured in this POC's Dockerfile/Procfile.
+- [ ] **Production gap:** put Flask behind HTTPS (ALB/CloudFront + ACM cert) — not configured in this POC's Dockerfile/Procfile. (Render's edge terminates TLS for you automatically if you deploy there instead of EB.)
 - [ ] **Production gap:** CORS is not configured; add `flask-cors` scoped to your real frontend origin if a browser client calls this API.
 - [x] No sensitive data (tokens, passwords) is logged — only `document_id`, method, path.
 
@@ -409,6 +409,37 @@ eb open
 
 After deploy, re-run the PART 10 curl tests against the EB URL instead of
 `localhost:5000`.
+
+### Render (alternative — single free-tier web service)
+
+The frontend has no separate server of its own — `app/routes/frontend.py`
+serves `index.html`/`dashboard.html` from the same Flask app as the API, and
+`app.js`/`dashboard.js` call relative `/api/...` paths with no CORS
+configured. So this deploys as **one Render Web Service** (not a Static
+Site) — frontend and backend together, exactly like running `python run.py`
+locally.
+
+The repo includes `render.yaml`, so the easiest path is **Render dashboard →
+New → Blueprint → select this repo**. It builds `Dockerfile` (which now
+binds to Render's `$PORT` instead of a hardcoded `5000`, and installs
+`requirements-snowflake.txt` too, since Linux has prebuilt wheels where
+Windows may not — see PART 5), wires up a health check against
+`/api/health`, and prompts you for the secret env vars (`sync: false` in
+`render.yaml`): AWS keys, `API_GATEWAY_UPLOAD_URL`, `SNS_TOPIC_ARN`, and the
+`SNOWFLAKE_*` values. `FLASK_SECRET_KEY`/`JWT_SECRET_KEY` are auto-generated
+per deploy — don't reuse your local `.env` values for those.
+
+Without a Blueprint, configure manually: New → Web Service → this repo →
+Environment: **Docker** → leave Build/Start commands blank (Dockerfile
+handles both) → add the same env vars from `.env.example` in the dashboard's
+Environment tab. Render's free tier spins the service down after ~15
+minutes idle; the first request after that takes ~30–60s to wake it back up.
+
+After deploy, re-run the PART 10 curl tests against the Render URL instead
+of `localhost:5000`. If Snowflake env vars aren't set, `/api/policies/*` and
+`/api/search` return `502 snowflake_unavailable` as usual, but
+`/api/dashboard` still works — it falls back to demo data
+(`"demo_data": true` in the response) instead of failing.
 
 ---
 
