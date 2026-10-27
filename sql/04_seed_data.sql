@@ -1,0 +1,21 @@
+-- Sample data for local testing of PART 12/13 (Testing / End-to-End Scenario)
+USE DATABASE POLICY_INTELLIGENCE;
+
+INSERT INTO CURATED.CURATED_POLICY
+    (policy_id, customer_id, policy_type, product_name, effective_date, status)
+VALUES
+    ('POL-1001', 'CUST-001', 'AUTO_POLICY', 'Comprehensive Auto', '2026-01-15', 'ACTIVE'),
+    ('POL-1002', 'CUST-002', 'HOME_POLICY', 'Homeowners Standard', '2026-03-01', 'ACTIVE');
+
+INSERT INTO CURATED.POLICY_DOCUMENT
+    (document_id, policy_id, customer_id, document_type, version, status, s3_key)
+VALUES
+    ('11111111-1111-1111-1111-111111111111', 'POL-1001', 'CUST-001', 'AUTO_POLICY', 1, 'PROCESSED', 'incoming/CUST-001/11111111-1111-1111-1111-111111111111_auto.pdf'),
+    ('22222222-2222-2222-2222-222222222222', 'POL-1002', 'CUST-002', 'HOME_POLICY', 1, 'PROCESSED', 'incoming/CUST-002/22222222-2222-2222-2222-222222222222_home.pdf');
+
+INSERT INTO RAW.POLICY_DOCUMENT_STATUS (document_id, status, error_details)
+VALUES
+    ('11111111-1111-1111-1111-111111111111', 'UPLOADED', NULL),
+    ('11111111-1111-1111-1111-111111111111', 'PROCESSED', NULL),
+    ('22222222-2222-2222-2222-222222222222', 'UPLOADED', NULL),
+    ('22222222-2222-2222-2222-222222222222', 'PROCESSED', NULL);

@@ -1,0 +1,36 @@
+# Python
+venv/
+.venv/
+env/
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+
+# Secrets / local config (keep the template tracked)
+.env
+.env.*
+!.env.example
+
+# Test / tooling caches
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs
+*.log
+
+# AWS Lambda build output (see aws/setup-commands.md §3 and §5)
+aws/lambda/*/package/
+aws/lambda/*/function.zip
+
+# Generated sample PDFs (scripts/generate_sample_pdfs.py)
+sample_documents/*.pdf
+
+# Editors / OS
+.vscode/
+.idea/
+.claude/
+.DS_Store
+Thumbs.db

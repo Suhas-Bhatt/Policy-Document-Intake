@@ -1,0 +1,14 @@
+Flask==3.0.3
+boto3==1.34.144
+PyJWT==2.9.0
+requests==2.32.3
+python-dotenv==1.0.1
+Werkzeug==3.0.3
+gunicorn==22.0.0
+
+# snowflake-connector-python is intentionally NOT pinned here — see
+# requirements-snowflake.txt. Its dependency `cffi` needs a prebuilt wheel
+# for your exact Python version; on a very new interpreter (e.g. 3.14) that
+# wheel may not exist yet, forcing a source build that needs MSVC. Installing
+# it separately lets the rest of the app (Flask/AWS routes, tests) work even
+# when the Snowflake install fails on your machine.

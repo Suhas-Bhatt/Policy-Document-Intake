@@ -1,0 +1,8 @@
+# Install separately: pip install -r requirements-snowflake.txt
+# Left unpinned (rather than snowflake-connector-python==3.11.0) so pip can
+# pick whatever current release has a prebuilt cffi wheel for your Python
+# version, instead of being locked to an old version that forces a
+# from-source build. If this still fails to install on Python 3.14, the
+# rest of the POC (Flask, AWS routes, tests) still works without it — see
+# app/services/snowflake_service.py for the lazy-import fallback.
+snowflake-connector-python

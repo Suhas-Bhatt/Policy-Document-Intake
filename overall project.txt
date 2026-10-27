@@ -1,0 +1,131 @@
+UseCasePOC/
+│
+├── app/                         ← Main Flask application
+│   ├── __init__.py              ← Creates/configures Flask app
+│   ├── config.py                ← Environment/configuration
+│   │
+│   ├── models/
+│   │   └── schemas.py            ← Input validation
+│   │
+│   ├── routes/
+│   │   ├── auth.py               ← Login API
+│   │   ├── documents.py          ← Upload/status APIs
+│   │   ├── policies.py           ← Policy lookup API
+│   │   ├── search.py             ← Search API
+│   │   ├── health.py             ← Health check
+│   │   └── frontend.py           ← Serves web UI
+│   │
+│   ├── services/
+│   │   ├── auth_service.py       ← JWT authentication
+│   │   ├── aws_service.py        ← AWS communication
+│   │   └── snowflake_service.py  ← Snowflake communication
+│   │
+│   ├── templates/
+│   │   └── index.html             ← Frontend HTML
+│   │
+│   ├── static/
+│   │   ├── app.js                 ← Frontend JavaScript
+│   │   └── style.css              ← Frontend styling
+│   │
+│   └── utils/
+│       └── errors.py              ← Error handling
+│
+├── aws/
+│   ├── apigateway/                ← API Gateway configuration
+│   ├── eventbridge/               ← EventBridge configuration
+│   ├── iam/                       ← IAM policies/roles
+│   └── lambda/
+│       ├── document_processor/    ← Main document processing Lambda
+│       └── snowflake_loader/      ← Loads processed data into Snowflake
+│
+├── sql/
+│   ├── 01_database_schema.sql
+│   ├── 02_tables.sql
+│   ├── 03_views.sql
+│   └── 04_seed_data.sql
+│
+├── sample_documents/              ← Test insurance PDFs
+│
+├── scripts/
+│   ├── generate_sample_pdfs.py
+│   └── upload_samples.py
+│
+├── tests/                         ← Automated tests
+│
+├── run.py                         ← Application entry point
+├── Dockerfile                     ← Docker deployment
+├── Procfile                       ← Deployment command
+└── requirements*.txt              ← Python dependencies
+
+
+
+
+
+
+Your complete permission map
+
+This is the important part. Save this mentally:
+
+                         AWS
+                          │
+             ┌────────────┴────────────┐
+             │                         │
+          Flask                    EventBridge
+             │                         │
+             ▼                         ▼
+        API Gateway              Lambda #1
+             │                policy-document-processor
+             │                         │
+             ▼              ┌──────────┼──────────┐
+            S3               │          │          │
+             │             S3       Textract   DynamoDB
+             │                                      │
+             └── EventBridge                         │
+                                                    SNS
+                                                     │
+                                                     ▼
+                                                  Lambda #2
+                                             snowflake-policy-loader
+                                                     │
+                                                     ├── DynamoDB
+                                                     │
+                                                     ▼
+                                                  Snowflake
+
+
+
+
+
+
+Your AWS architecture
+                    Flask Application
+                           │
+                           ▼
+                    API Gateway
+                           │
+                           ▼
+                          S3
+                           │
+                    Object Created
+                           ▼
+                      EventBridge
+                           │
+                           ▼
+                 Lambda #1
+          policy-document-processor
+                    │    │    │
+                    │    │    └── SNS
+                    │    │
+                    │    └────── DynamoDB
+                    │
+                    └────────── Textract
+                                  │
+                                  ▼
+                                 SNS
+                                  │
+                                  ▼
+                 Lambda #2
+             snowflake-policy-loader
+                         │
+                         ▼
+                     Snowflake

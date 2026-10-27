@@ -1,0 +1,6 @@
+-r requirements.txt
+pytest==8.3.2
+moto[dynamodb]==5.0.11
+# Snowflake is intentionally separate — see requirements-snowflake.txt.
+# `pytest -v` does not require it: Snowflake-backed routes fail gracefully
+# with 501 if the package isn't installed (see snowflake_service.py).

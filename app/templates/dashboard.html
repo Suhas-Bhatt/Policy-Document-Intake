@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Processing Dashboard &mdash; Policy Document Intake</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <div class="brand">
+        <span class="brand-icon">PD</span>
+        <div>
+          <h1>Processing Dashboard</h1>
+          <p class="subtitle">Policy Document Intake</p>
+        </div>
+      </div>
+      <div class="session-actions">
+        <a href="/" class="dashboard-link">Upload &amp; Search</a>
+        <div id="session-status" class="pill pill-muted">Not logged in</div>
+        <button id="logout-btn" class="logout-btn" hidden>Log out</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <a href="/" class="back-link">&larr; Back to app</a>
+
+    <section class="card" id="login-required-card" hidden>
+      <div class="card-head">
+        <h2>Log in required</h2>
+      </div>
+      <p>You need to be logged in to view the dashboard. <a href="/">Go to the login page</a>.</p>
+    </section>
+
+    <div id="dashboard-content" hidden>
+      <div class="stat-grid" id="stat-grid"></div>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>Documents by type, status &amp; day</h2>
+          <span class="badge badge-demo" id="demo-badge" hidden>Demo data &mdash; Snowflake not connected</span>
+          <div class="card-head-actions">
+            <span class="last-updated" id="last-updated"></span>
+            <button id="refresh-btn" type="button" class="secondary-btn">Refresh</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="dashboard-table" id="dashboard-table">
+            <thead>
+              <tr>
+                <th>Processing Day</th>
+                <th>Document Type</th>
+                <th>Status</th>
+                <th>Count</th>
+              </tr>
+            </thead>
+            <tbody id="dashboard-table-body"></tbody>
+          </table>
+        </div>
+        <div class="empty-state" id="dashboard-empty" hidden>No processed documents yet.</div>
+        <pre class="output" id="dashboard-output"></pre>
+      </section>
+    </div>
+  </main>
+
+  <footer>Policy Document Intake &amp; Policy Intelligence &mdash; POC</footer>
+
+  <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
+</body>
+</html>

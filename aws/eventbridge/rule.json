@@ -1,0 +1,23 @@
+{
+  "Name": "policy-document-uploaded-rule",
+  "Description": "Diagram: S3 -> EventBridge -> Lambda (Document Processor). Fires when a new object lands in the policy documents bucket.",
+  "EventPattern": {
+    "source": ["aws.s3"],
+    "detail-type": ["Object Created"],
+    "detail": {
+      "bucket": {
+        "name": ["policy-documentz"]
+      },
+      "object": {
+        "key": [{ "prefix": "incoming/" }]
+      }
+    }
+  },
+  "State": "ENABLED",
+  "Targets": [
+    {
+      "Id": "document-processor-lambda",
+      "Arn": "arn:aws:lambda:us-east-1:312816040566:function:policy-document-processor"
+    }
+  ]
+}

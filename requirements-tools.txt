@@ -1,0 +1,5 @@
+# Only needed for the local test-data helper scripts in scripts/ -- not a
+# runtime dependency of the Flask app itself.
+fpdf2==2.7.9
+# scripts/upload_samples.py calls the Flask API over HTTP.
+requests==2.32.3

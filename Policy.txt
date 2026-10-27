@@ -1,0 +1,1272 @@
+Absolutely. This architecture represents an automated Insurance Policy Document Intake & Policy Intelligence system. The main idea is:
+
+A user uploads an insurance policy document → Flask receives it → AWS stores and processes it → extracted information is structured → Snowflake stores and analyzes it → users/business teams can search, track, and analyze policies.
+
+Let me break the entire use case down from business perspective → technical architecture → end-to-end flow.
+
+1. What problem is this system solving?
+
+Insurance companies deal with a huge number of documents such as:
+
+Insurance policy PDFs
+Policy schedules
+Customer documents
+Policy certificates
+Endorsements
+Renewals
+Claims-related documents
+Supporting documents
+
+Traditionally, employees may have to:
+
+Receive the document.
+Save it somewhere.
+Read the document manually.
+Extract policy number, customer name, dates, coverage, etc.
+Enter information into a database.
+Search for documents manually later.
+Track whether processing is complete.
+Generate reports.
+
+That is slow and error-prone.
+
+This architecture automates that process.
+
+The system creates a pipeline:
+
+Policy Document
+      ↓
+Flask API
+      ↓
+AWS
+      ↓
+Document Processing
+      ↓
+Extracted Information
+      ↓
+Snowflake
+      ↓
+Search / Analytics / Reporting
+      ↓
+Business Decisions
+2. High-level architecture
+
+Your architecture has 5 major layers:
+
+┌──────────────────────┐
+│  1. USERS   │
+└──────────┬───────────┘
+           ↓
+┌──────────────────────┐
+│  2. FLASK API        │
+│  Business Logic      │
+└──────────┬───────────┘
+           ↓
+┌──────────────────────┐
+│  3. AWS PROCESSING   │
+│  S3 + Lambda + etc.  │
+└──────────┬───────────┘
+           ↓
+┌──────────────────────┐
+│  4. SNOWFLAKE        │
+│  Data + Analytics    │
+└──────────┬───────────┘
+           ↓
+┌──────────────────────┐
+│  5. BUSINESS         │
+│  OUTCOMES            │
+└──────────────────────┘
+
+Each layer has a different responsibility.
+
+3. Layer 1 — Users / Agents
+
+The first layer contains the people interacting with the system.
+
+Your diagram has three types of users.
+
+A. Policyholder
+
+This is the customer.
+
+They can:
+
+Upload policy documents
+Check document status
+View policy details
+
+For example:
+
+Customer
+   ↓
+Uploads car insurance policy.pdf
+B. Insurance Agent
+
+An insurance agent may upload documents on behalf of customers.
+
+They can:
+
+Upload documents
+Search policy information
+Track processing status
+
+For example:
+
+Insurance Agent
+      ↓
+Uploads customer policy
+      ↓
+Tracks whether processing is complete
+C. Customer Service
+
+Customer service employees can:
+
+Verify documents
+Search policy information
+Handle customer questions
+
+For example, a customer calls:
+
+"Can you tell me when my policy expires?"
+
+The customer-service employee can search the policy rather than manually opening PDFs.
+
+4. Layer 2 — Flask API
+
+This is the application/business logic layer.
+
+Your diagram uses:
+
+Flask REST API deployed on AWS
+
+Flask acts as the bridge between the frontend/users and AWS services.
+
+Think of Flask as the traffic controller.
+
+Frontend
+   ↓
+Flask API
+   ↓
+AWS services
+
+The frontend doesn't need to directly control all AWS services.
+
+5. Flask API endpoints
+
+Your architecture shows four important APIs.
+
+POST /api/documents/upload
+
+This is used to upload a policy document.
+
+For example:
+
+POST /api/documents/upload
+
+The request could contain:
+
+policy.pdf
+customer_id
+policy_type
+
+Flask then:
+
+Receives the request.
+Authenticates the user.
+Validates the document.
+Generates metadata.
+Sends/stores the document in AWS.
+Starts processing.
+Returns a document ID.
+
+Example response:
+
+{
+    "document_id": "DOC12345",
+    "status": "PROCESSING"
+}
+6. GET /api/policies/{id}
+
+This endpoint retrieves policy information.
+
+For example:
+
+GET /api/policies/POL12345
+
+It might return:
+
+{
+    "policy_number": "POL12345",
+    "customer": "John",
+    "policy_type": "Motor Insurance",
+    "start_date": "2026-01-01",
+    "expiry_date": "2027-01-01",
+    "status": "ACTIVE"
+}
+
+The important point is that the application doesn't have to manually parse the PDF every time.
+
+The information has already been processed and stored.
+
+7. GET /api/documents/{id}/status
+
+This is used to track processing.
+
+For example:
+
+GET /api/documents/DOC12345/status
+
+Response:
+
+{
+    "document_id": "DOC12345",
+    "status": "COMPLETED",
+    "processed_at": "2026-09-08T10:20:00"
+}
+
+Possible statuses:
+
+UPLOADED
+   ↓
+PROCESSING
+   ↓
+EXTRACTING
+   ↓
+VALIDATING
+   ↓
+COMPLETED
+
+If something goes wrong:
+
+PROCESSING
+    ↓
+FAILED
+8. GET /api/search
+
+This is the search API.
+
+For example:
+
+GET /api/search?policy_number=POL12345
+
+or:
+
+GET /api/search?customer_name=John
+
+The user can search for policies/documents without manually opening hundreds of PDFs.
+
+9. Flask Business Logic
+
+The Flask layer also handles important business operations.
+
+Your diagram identifies:
+
+Request/file validation
+
+It checks:
+
+Is a file actually uploaded?
+Is the file type supported?
+Is the request valid?
+Is required metadata present?
+
+For example:
+
+policy.pdf       → ACCEPT
+policy.exe       → REJECT
+Authentication
+
+The architecture mentions:
+
+JWT authentication
+
+JWT allows Flask to determine who is making the request.
+
+Conceptually:
+
+User
+ ↓
+Login
+ ↓
+JWT token
+ ↓
+API request
+ ↓
+Flask validates token
+ ↓
+Request accepted
+Metadata management
+
+Flask can generate and maintain information such as:
+
+document_id
+customer_id
+upload_timestamp
+document_type
+processing_status
+S3 location
+Trigger processing
+
+Once the document is uploaded, Flask initiates the AWS processing workflow.
+
+10. Layer 3 — AWS Document Intake & Processing
+
+This is the processing engine.
+
+Your architecture uses several AWS services:
+
+API Gateway
+     ↓
+S3
+     ↓
+EventBridge
+     ↓
+Lambda
+     ↓
+DynamoDB
+     ↓
+SNS
+     ↓
+CloudWatch
+
+Each service has a specific job.
+
+11. Amazon API Gateway
+
+API Gateway provides an API entry point for AWS.
+
+Your architecture shows:
+
+Flask
+   ↓
+API Gateway
+   ↓
+AWS
+
+Its role is to expose/route API requests securely into AWS.
+
+You can think of it as an AWS API front door.
+
+12. Amazon S3 — Document Storage
+
+S3 is where the actual policy documents are stored.
+
+For example:
+
+S3 Bucket
+│
+├── policies/
+│   ├── POL12345.pdf
+│   ├── POL12346.pdf
+│   └── POL12347.pdf
+│
+└── images/
+    └── ...
+
+S3 is particularly suitable because policy documents are usually files such as:
+
+PDF
+JPG
+PNG
+scanned documents
+
+The important architectural separation is:
+
+S3 stores the actual document, while the database stores information about the document.
+
+For example:
+
+S3
+ ↓
+policy.pdf
+
+DynamoDB
+ ↓
+document_id
+customer_id
+S3 path
+status
+timestamp
+13. Amazon EventBridge
+
+Once a document enters the system, you don't want Flask sitting there waiting for processing to finish.
+
+Instead, the architecture uses an event-driven approach.
+
+Conceptually:
+
+Document uploaded
+       ↓
+S3 event
+       ↓
+EventBridge
+       ↓
+Processing workflow
+
+EventBridge acts as an event router.
+
+It can detect:
+
+"A new policy document has arrived."
+
+and trigger the appropriate processing flow.
+
+This makes the architecture more loosely coupled.
+
+14. AWS Lambda — Document Processor
+
+This is one of the most important components.
+
+Lambda performs the actual document-processing logic.
+
+Your diagram says it performs tasks such as:
+
+Extract text
+Classify document type
+Extract key policy details
+Validate and enrich data
+
+So:
+
+Policy PDF
+    ↓
+Lambda
+    ↓
+Text extraction
+    ↓
+Document classification
+    ↓
+Information extraction
+    ↓
+Validation
+15. What does "extract information" mean?
+
+Suppose the uploaded PDF contains:
+
+ABC INSURANCE COMPANY
+
+Policy Number: POL-45892
+Customer Name: John Smith
+Policy Type: Motor Insurance
+
+Effective Date: 01/01/2026
+Expiry Date: 31/12/2026
+
+Coverage: Comprehensive
+Premium: ₹25,000
+
+Lambda/document-processing logic converts that unstructured document into structured information:
+
+{
+    "policy_number": "POL-45892",
+    "customer_name": "John Smith",
+    "policy_type": "Motor Insurance",
+    "effective_date": "2026-01-01",
+    "expiry_date": "2026-12-31",
+    "coverage": "Comprehensive",
+    "premium": 25000
+}
+
+This transformation is extremely important.
+
+Before:
+PDF
+ ↓
+Unstructured text
+After:
+Structured JSON/data
+
+Now Snowflake can analyze it.
+
+16. Document classification
+
+The system can determine what type of document it received.
+
+For example:
+
+Input
+  ↓
+document.pdf
+  ↓
+Classifier
+  ↓
+Motor Policy
+
+Other possibilities:
+
+Motor Policy
+Health Policy
+Life Policy
+Policy Endorsement
+Renewal Document
+Policy Certificate
+
+This makes downstream processing easier.
+
+17. DynamoDB — Operational Metadata
+
+DynamoDB is used for operational metadata, not necessarily the analytical warehouse.
+
+For example:
+
+Document ID
+Customer ID
+S3 location
+Processing status
+Upload time
+Processing time
+Extracted policy details
+Error information
+
+A record might look conceptually like:
+
+{
+    "document_id": "DOC1001",
+    "status": "COMPLETED",
+    "s3_path": "s3://policy-bucket/POL1001.pdf",
+    "uploaded_at": "...",
+    "processed_at": "..."
+}
+
+This is useful because the application needs quick access to the current processing state.
+
+18. Amazon SNS — Notifications
+
+SNS handles notifications.
+
+Suppose processing finishes:
+
+Lambda
+   ↓
+Processing completed
+   ↓
+SNS
+   ↓
+Notification
+
+The user/agent could receive:
+
+"Policy document DOC1001 has been successfully processed."
+
+It could also notify operations when something fails.
+
+Example:
+
+Lambda
+   ↓
+Processing failed
+   ↓
+SNS
+   ↓
+Operations team alerted
+19. CloudWatch — Monitoring
+
+CloudWatch provides observability.
+
+It can monitor:
+
+Lambda execution
+Errors
+Processing duration
+Logs
+Failed requests
+System health
+
+For example:
+
+Lambda
+  ↓
+CloudWatch
+
+Logs:
+Document received
+Text extraction started
+Extraction completed
+Validation completed
+Snowflake load completed
+
+If Lambda starts failing repeatedly, CloudWatch can trigger an alert.
+
+20. Layer 4 — Snowflake Data Platform
+
+This is the analytical/data layer.
+
+This is where the architecture becomes particularly useful for insurance analytics.
+
+The AWS processing layer produces structured data.
+
+That data is loaded into Snowflake.
+
+Conceptually:
+
+AWS
+ │
+ ├── S3
+ ├── DynamoDB
+ └── Processed data
+          ↓
+      Snowflake
+
+Snowflake becomes the centralized analytical platform.
+
+21. Snowflake Connector / AWS Glue
+
+Your architecture shows:
+
+Snowflake Connector (or AWS Glue)
+
+The purpose is to move processed data from AWS into Snowflake.
+
+For example:
+
+S3
+ ↓
+Processed policy data
+ ↓
+Snowflake ingestion
+ ↓
+Snowflake tables
+
+This allows Snowflake to become the central source for reporting and analytics.
+
+22. Snowflake RAW_POLICY_DOCUMENTS
+
+The first major Snowflake layer is:
+
+RAW_POLICY_DOCUMENTS
+
+This contains relatively raw information.
+
+For example:
+
+document_id	customer_id	document_type	s3_path	ingestion_time
+DOC001	C001	Motor Policy	S3/path	10:00
+DOC002	C002	Health Policy	S3/path	10:05
+
+This preserves the original ingestion information.
+
+23. CURATED_POLICY
+
+The next layer is:
+
+CURATED_POLICY
+
+This is cleaned and standardized data.
+
+For example:
+
+RAW DATA
+   ↓
+Cleaning
+   ↓
+Standardization
+   ↓
+CURATED DATA
+
+Suppose the raw data has:
+
+01/01/26
+01-Jan-2026
+2026/01/01
+
+The curated layer can standardize everything into:
+
+2026-01-01
+
+It may also contain:
+
+Policy number
+Customer information
+Policy type
+Effective date
+Expiry date
+Coverage
+Premium
+Product information
+24. POLICY_DOCUMENT
+
+This table/view focuses on document-level information.
+
+It can contain:
+
+document_id
+policy_id
+document_type
+version
+status
+S3 document location
+
+This allows users to connect a policy record back to the actual document.
+
+25. POLICY_DOCUMENT_STATUS
+
+This is used for tracking the document lifecycle.
+
+For example:
+
+DOC001
+ │
+ ├── Uploaded: 10:00
+ ├── Processing started: 10:01
+ ├── Extraction completed: 10:02
+ ├── Validation completed: 10:02
+ └── Completed: 10:03
+
+This gives you an audit trail.
+
+26. Analytics & Search-Ready Views
+
+Finally, Snowflake can create views specifically designed for:
+
+Reporting
+Search
+Dashboards
+Business intelligence
+Operational analysis
+
+For example:
+
+SELECT
+    policy_type,
+    COUNT(*) AS policy_count
+FROM CURATED_POLICY
+GROUP BY policy_type;
+
+You could discover:
+
+Motor Insurance     45,000
+Health Insurance    31,000
+Life Insurance      22,000
+27. The complete end-to-end flow
+
+Now let's follow one policy document through the entire architecture.
+
+Suppose an insurance agent uploads:
+
+John_Motor_Policy.pdf
+Step 1 — User uploads document
+Insurance Agent
+      ↓
+Frontend
+      ↓
+Flask API
+
+Request:
+
+POST /api/documents/upload
+Step 2 — Flask validates request
+
+Flask checks:
+
+Is user authenticated?
+        ↓
+Is file present?
+        ↓
+Is file type supported?
+        ↓
+Is metadata valid?
+
+If everything is correct:
+
+ACCEPT
+28. Step 3 — Store document in S3
+
+The document is uploaded to:
+
+Amazon S3
+
+For example:
+
+s3://insurance-policy-documents/
+        motor/
+            2026/
+                John_Motor_Policy.pdf
+
+S3 stores the actual file.
+
+29. Step 4 — Event is generated
+
+The upload generates an event.
+
+S3
+ ↓
+EventBridge
+
+EventBridge recognizes:
+
+New policy document uploaded.
+
+30. Step 5 — Lambda starts processing
+
+EventBridge triggers Lambda.
+
+EventBridge
+      ↓
+Lambda
+
+Lambda retrieves the document and processes it.
+
+31. Step 6 — Extract information
+
+Lambda extracts information such as:
+
+Policy Number
+Customer Name
+Policy Type
+Effective Date
+Expiry Date
+Coverage
+Premium
+
+For example:
+
+{
+    "policy_number": "POL45892",
+    "customer": "John Smith",
+    "type": "Motor",
+    "coverage": "Comprehensive",
+    "premium": 25000
+}
+32. Step 7 — Validate and enrich
+
+The extracted data is validated.
+
+For example:
+
+Policy Number exists?       YES
+Effective date valid?       YES
+Expiry > Effective date?    YES
+Policy type recognized?     YES
+
+If something is wrong:
+
+Validation FAILED
+       ↓
+DynamoDB
+       ↓
+SNS
+       ↓
+Operations alert
+33. Step 8 — Update DynamoDB
+
+DynamoDB stores operational status.
+
+DOC001
+Status = COMPLETED
+
+This allows the application to quickly answer:
+
+"Is my document processed?"
+
+34. Step 9 — Send notification
+
+SNS can notify the user/agent:
+
+"Your policy document has been successfully processed."
+35. Step 10 — Load data into Snowflake
+
+The processed information moves into Snowflake.
+
+AWS processed data
+        ↓
+Snowflake Connector / Glue
+        ↓
+RAW_POLICY_DOCUMENTS
+36. Step 11 — Transform into curated data
+
+Snowflake processes the raw data:
+
+RAW_POLICY_DOCUMENTS
+        ↓
+Transformation
+        ↓
+CURATED_POLICY
+
+Now the data is standardized and ready for analysis.
+
+37. Step 12 — User searches policy
+
+Customer service can now use:
+
+GET /api/search
+
+For example:
+
+Search:
+Policy Number = POL45892
+
+The system finds the corresponding policy.
+
+38. Step 13 — Business intelligence
+
+The company can now ask much bigger questions.
+
+For example:
+
+How many policies were processed this month?
+SELECT COUNT(*)
+FROM CURATED_POLICY
+WHERE ingestion_date >= '2026-09-01';
+Which policy type has the most documents?
+Motor       → 50,000
+Health      → 35,000
+Life        → 20,000
+How many documents failed processing?
+Uploaded       100,000
+Completed       97,000
+Failed           3,000
+
+This is where Snowflake becomes more than just storage.
+
+It becomes the analytics layer.
+
+39. Business Outcomes
+
+The final layer in your architecture represents the value generated by the system.
+
+1. Policy Lookup
+
+Users can:
+
+Search policies
+View extracted information
+Access document history
+
+Instead of:
+
+Search folder
+ ↓
+Open PDF
+ ↓
+Read document
+ ↓
+Find policy number
+
+you have:
+
+Search policy number
+       ↓
+Structured result
+40. Document Status
+
+The system provides real-time-ish processing visibility.
+
+For example:
+
+DOC1001
+🟢 COMPLETED
+
+or:
+
+DOC1002
+🟡 PROCESSING
+
+or:
+
+DOC1003
+🔴 FAILED
+
+This is useful for both customers and operations.
+
+41. Processing Dashboard
+
+Management can see:
+
+Documents uploaded today
+Documents processed
+Documents failed
+Average processing time
+Processing trends
+
+For example:
+
+Today's documents:       12,500
+Successfully processed:  12,100
+Failed:                    400
+Success rate:              96.8%
+42. Audit & Compliance Reporting
+
+Insurance is heavily dependent on documentation and traceability.
+
+The architecture maintains:
+
+Who uploaded it?
+        ↓
+When was it uploaded?
+        ↓
+Where is the document?
+        ↓
+When was it processed?
+        ↓
+What information was extracted?
+        ↓
+Was processing successful?
+        ↓
+What happened afterward?
+
+This creates an auditable history.
+
+43. Business Value
+
+The architecture ultimately provides:
+
+Faster document processing
+
+Automation reduces manual document handling.
+
+Improved data accuracy
+
+Structured extraction and validation reduce manual data-entry errors.
+
+Better customer experience
+
+Customer service can quickly retrieve policy information.
+
+Operational efficiency
+
+Agents don't need to manually track every document.
+
+Data-driven insights
+
+Snowflake enables analytics across large numbers of policies.
+
+Scalability
+
+Because much of the architecture is event-driven/serverless, processing can scale based on demand.
+
+44. Why use Flask?
+
+Flask is the application/API layer.
+
+It is useful because it provides a lightweight way to implement:
+
+REST APIs
+Authentication
+Validation
+Business logic
+AWS integration
+Search APIs
+Status APIs
+
+For example:
+
+@app.route("/api/documents/upload", methods=["POST"])
+def upload_document():
+    ...
+
+The Flask application doesn't need to perform every heavy processing operation itself.
+
+Instead, it delegates work to AWS.
+
+That's an important architectural principle:
+
+Flask handles requests and business logic; AWS handles storage, asynchronous processing, notifications and infrastructure services.
+
+45. Why AWS serverless services?
+
+The architecture is designed around a serverless/free-tier-conscious approach.
+
+Instead of having:
+
+EC2 server
+    ↓
+Always running
+
+you use services such as:
+
+S3
+Lambda
+EventBridge
+DynamoDB
+SNS
+CloudWatch
+
+Many of these operate on a pay-per-use/serverless model, making them suitable for a prototype or proof of concept.
+
+The key idea is:
+
+No document
+    ↓
+Very little processing
+
+Document arrives
+    ↓
+Trigger processing
+
+So you don't need to keep a large processing server running continuously.
+
+46. Why S3 + DynamoDB + Snowflake?
+
+This is an important point if you're explaining the architecture in an interview.
+
+They have different responsibilities.
+
+Component	Purpose
+S3	Stores actual policy files
+DynamoDB	Fast operational metadata/status
+Snowflake	Analytical data warehouse
+Flask	API/business logic
+Lambda	Document processing
+EventBridge	Event orchestration/routing
+SNS	Notifications
+CloudWatch	Monitoring/logging
+
+So you're not unnecessarily storing the same thing everywhere.
+
+47. The most important architectural concept
+
+The architecture is essentially combining three types of systems:
+
+Transaction/API system
+Flask
+DynamoDB
+
+Used for:
+
+"What is the status of document DOC123?"
+
+Object/document storage
+S3
+
+Used for:
+
+"Where is the actual PDF?"
+
+Analytical system
+Snowflake
+
+Used for:
+
+"How many policies were processed last month?"
+
+and:
+
+"What are the trends across policy types?"
+
+This separation makes the architecture much cleaner.
+
+48. Architecture in one simple diagram
+
+If you have to explain this to someone quickly, use this:
+
+                    USERS
+                      │
+                      ▼
+              ┌──────────────┐
+              │  FLASK API   │
+              │              │
+              │ Auth         │
+              │ Validation   │
+              │ Business     │
+              │ Logic        │
+              └──────┬───────┘
+                     │
+                     ▼
+              ┌──────────────┐
+              │  AWS LAYER   │
+              │              │
+              │ API Gateway  │
+              │ S3           │
+              │ EventBridge  │
+              │ Lambda       │
+              │ DynamoDB     │
+              │ SNS          │
+              │ CloudWatch   │
+              └──────┬───────┘
+                     │
+                     │ Processed Data
+                     ▼
+              ┌──────────────┐
+              │  SNOWFLAKE   │
+              │              │
+              │ RAW          │
+              │ CURATED      │
+              │ STATUS       │
+              │ ANALYTICS    │
+              └──────┬───────┘
+                     │
+                     ▼
+          ┌──────────────────────┐
+          │ BUSINESS OUTCOMES    │
+          │                      │
+          │ Search               │
+          │ Dashboards           │
+          │ Reports              │
+          │ Compliance           │
+          │ Insights             │
+          └──────────────────────┘
+49. A real-world example
+
+Imagine an insurance company receives 10,000 policy documents every day.
+
+Without this system:
+
+10,000 PDFs
+     ↓
+Employees manually open PDFs
+     ↓
+Read policy details
+     ↓
+Enter data into systems
+     ↓
+Manually track processing
+     ↓
+Create reports
+
+With your architecture:
+
+10,000 PDFs
+     ↓
+Flask API
+     ↓
+S3
+     ↓
+EventBridge
+     ↓
+Lambda
+     ↓
+Extract + Validate
+     ↓
+DynamoDB
+     ↓
+Snowflake
+     ↓
+Dashboards / Search / Reports
+
+That's the fundamental business case.
+
+50. How to explain this in an interview
+
+If someone asks:
+
+"Explain your project architecture."
+
+You can give this answer:
+
+"This project is an automated insurance policy document intake and intelligence platform. Users or insurance agents upload policy documents through a Flask REST API. Flask handles authentication, validation, metadata and business logic. The documents are stored in Amazon S3, and an event-driven workflow using EventBridge triggers AWS Lambda for document processing. Lambda extracts and validates important policy information and stores operational metadata and processing status in DynamoDB. Notifications are handled through SNS and the entire workflow is monitored using CloudWatch. The processed data is then ingested into Snowflake, where we maintain raw, curated and document-status layers. Snowflake provides search-ready views and analytical capabilities for dashboards, reporting and business intelligence. This ultimately enables faster policy lookup, automated document processing, better tracking, auditability and data-driven insurance operations."
+
+That's a very strong 1–2 minute architecture explanation.
+
+The entire use case in one sentence
+
+"Upload once → automatically store → process → extract → validate → track → load into Snowflake → search → analyze → make better insurance decisions."
+
+And the most important flow to remember is:
+
+USER
+ ↓
+FLASK
+ ↓
+S3
+ ↓
+EVENTBRIDGE
+ ↓
+LAMBDA
+ ↓
+DYNAMODB + SNS + CLOUDWATCH
+ ↓
+SNOWFLAKE
+ ↓
+SEARCH / DASHBOARD / ANALYTICS
+ ↓
+BUSINESS VALUE
